@@ -1,7 +1,7 @@
 import { BadRequestException, createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
-import { pageSizes, PageSizeType, Pagination } from 'src/types/pagionation.type';
+import { pageSizes, PageSizeType, Pagination } from '../types'
 
 export const SwaggerPaginationDecorator = () => {
     return (

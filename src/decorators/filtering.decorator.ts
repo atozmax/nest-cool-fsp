@@ -1,7 +1,7 @@
 import { BadRequestException, createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
-import { FilteringInterface, FilteringRulesEnum } from 'src/types/filtering.type';
+import { FilteringInterface, FilteringRulesEnum } from '../types'
 
 export const SwaggerFilteringDecorator = (validParams: string[]) => {
     return (
