@@ -1,7 +1,7 @@
 import { BadRequestException, createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
-import { Sorting } from 'src/types';
+import { Sorting } from '../types';
 
 export const SwaggerSortingDecorator = (validParams: string[]) => {
     return (

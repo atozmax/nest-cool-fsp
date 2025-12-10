@@ -1,7 +1,7 @@
 import { IsNull, Not, LessThan, LessThanOrEqual, MoreThan, MoreThanOrEqual, ILike, In, Repository, Between } from "typeorm";
-import { FilteringInterface, FilteringRulesEnum } from "src/types";
+import { FilteringInterface, FilteringRulesEnum } from '../types'
 
-export const getWhere = (filters: FilteringInterface[], repository: Repository<any>) => {
+export const getWhere = (filters: FilteringInterface[], repository) => {
     const combinedRules = {};
 
     const dateFields = repository.metadata.columns
