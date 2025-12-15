@@ -20,3 +20,15 @@ export enum FilteringRulesEnum {
     IS_NOT_NULL = 'isnotnull',
     BETWEEN = 'between',
 }
+
+export type availableOrms = 'typeorm' | 'sequelize' | 'mongoose';
+
+export enum availableOrmEnum {
+    typeorm = 'typeorm',
+    sequelize = 'sequelize',
+    mongoose = 'mongoose'
+}
+
+export interface WhereOptions {
+    orm?: availableOrms;
+}
