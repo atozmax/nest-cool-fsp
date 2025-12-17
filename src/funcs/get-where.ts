@@ -1,5 +1,6 @@
 import { IsNull, Not, LessThan, LessThanOrEqual, MoreThan, MoreThanOrEqual, ILike, In, Between, Like } from "typeorm";
 import { availableOrmEnum, FilteringInterface, FilteringRulesEnum, WhereOptions } from '../types'
+import { Op } from "sequelize";
 
 export function getWhere(
     filters: FilteringInterface[],
@@ -13,6 +14,11 @@ export function getWhere(
         switch (orm) {
             case availableOrmEnum.typeorm: {
                 getTypeOrmWhereFilters(combinedRules, filter, dateFields)
+                break;
+            }
+
+            case availableOrmEnum.sequelize: {
+                getSequelizeFilters(combinedRules, filter, dateFields)
                 break;
             }
 
@@ -234,3 +240,97 @@ const getTypeOrmWhereFilters = (
         }
     }
 }
+
+const getSequelizeFilters = (
+    combinedRules: Record<string, any>,
+    filter: FilteringInterface,
+    dateFields: string[]
+) => {
+    const { isNested, property, rule, value } = filter;
+    const isDateField = dateFields.includes(property);
+
+    let filterValue: string | Date = value;
+    if (isDateField && value && rule !== FilteringRulesEnum.BETWEEN) {
+        filterValue = new Date(value);
+        if (isNaN(filterValue.getTime())) {
+            throw new Error(`Invalid date format for field ${property}`);
+        }
+    }
+
+    const buildValue = () => {
+        switch (rule) {
+            case FilteringRulesEnum.IS_NULL:
+                return { [Op.eq]: null };
+            case FilteringRulesEnum.IS_NOT_NULL:
+                return { [Op.ne]: null };
+            case FilteringRulesEnum.EQUALS:
+                return filterValue;
+            case FilteringRulesEnum.NOT_EQUALS:
+                return { [Op.ne]: filterValue };
+            case FilteringRulesEnum.GREATER_THAN:
+                return { [Op.gt]: filterValue };
+            case FilteringRulesEnum.GREATER_THAN_OR_EQUALS:
+                return { [Op.gte]: filterValue };
+            case FilteringRulesEnum.LESS_THAN:
+                return { [Op.lt]: filterValue };
+            case FilteringRulesEnum.LESS_THAN_OR_EQUALS:
+                return { [Op.lte]: filterValue };
+            case FilteringRulesEnum.LIKE:
+                return { [Op.like]: `%${value}%` };
+            case FilteringRulesEnum.ILIKE:
+                return { [Op.iLike]: `%${value}%` }; // PostgreSQL only
+            case FilteringRulesEnum.NOT_LIKE:
+                return { [Op.notLike]: `%${value}%` };
+            case FilteringRulesEnum.NOT_ILIKE:
+                return { [Op.notILike]: `%${value}%` }; // PostgreSQL only
+            case FilteringRulesEnum.STARTS_WITH:
+                return { [Op.like]: `${value}%` };
+            case FilteringRulesEnum.ISTARTS_WITH:
+                return { [Op.iLike]: `${value}%` };
+            case FilteringRulesEnum.NOT_STARTS_WITH:
+                return { [Op.notLike]: `${value}%` };
+            case FilteringRulesEnum.NOT_ISTARTS_WITH:
+                return { [Op.notILike]: `${value}%` };
+            case FilteringRulesEnum.ENDS_WITH:
+                return { [Op.like]: `%${value}` };
+            case FilteringRulesEnum.IENDS_WITH:
+                return { [Op.iLike]: `%${value}` };
+            case FilteringRulesEnum.NOT_ENDS_WITH:
+                return { [Op.notLike]: `%${value}` };
+            case FilteringRulesEnum.NOT_IENDS_WITH:
+                return { [Op.notILike]: `%${value}` };
+            case FilteringRulesEnum.IN:
+                return { [Op.in]: value.split(',') };
+            case FilteringRulesEnum.NOT_IN:
+                return { [Op.notIn]: value.split(',') };
+            case FilteringRulesEnum.BETWEEN: {
+                const [start, end] = value.split(',');
+                if (!start || !end) {
+                    throw new Error(`Invalid range for property ${property}`);
+                }
+                if (isDateField) {
+                    const startValue = new Date(start);
+                    const endValue = new Date(end);
+                    if (isNaN(startValue.getTime()) || isNaN(endValue.getTime())) {
+                        throw new Error(`Invalid date range for property ${property}`);
+                    }
+                    return { [Op.between]: [startValue, endValue] };
+                } else {
+                    return { [Op.between]: [+start, +end] };
+                }
+            }
+            default:
+                throw new Error(`Unsupported filtering rule: ${rule}`);
+        }
+    };
+
+    const valueToSet = buildValue();
+
+    if (isNested) {
+        const [relation, nestedProperty] = property.split('.');
+        if (!combinedRules[relation]) combinedRules[relation] = {};
+        combinedRules[relation][nestedProperty] = valueToSet;
+    } else {
+        combinedRules[property] = valueToSet;
+    }
+};
