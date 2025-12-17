@@ -13,12 +13,26 @@ export enum FilteringRulesEnum {
     LESS_THAN = 'lt',
     LESS_THAN_OR_EQUALS = 'lte',
     LIKE = 'like',
+    ILIKE = 'ilike',
+
     NOT_LIKE = 'nlike',
+    NOT_ILIKE = 'nilike',
+
     IN = 'in',
     NOT_IN = 'nin',
     IS_NULL = 'isnull',
     IS_NOT_NULL = 'isnotnull',
     BETWEEN = 'between',
+
+    STARTS_WITH = 'sw',
+    ENDS_WITH = 'ew',
+    ISTARTS_WITH = 'isw',
+    IENDS_WITH = 'iew',
+
+    NOT_STARTS_WITH = 'nsw',
+    NOT_ENDS_WITH = 'new',
+    NOT_ISTARTS_WITH = 'nisw',
+    NOT_IENDS_WITH = 'niew',
 }
 
 export type availableOrms = 'typeorm' | 'sequelize' | 'mongoose';
@@ -31,4 +45,7 @@ export enum availableOrmEnum {
 
 export interface WhereOptions {
     orm?: availableOrms;
+    dateFields: string[];
 }
+
+export const FILTERING_RULES_STRING = Object.values(FilteringRulesEnum).join('|');

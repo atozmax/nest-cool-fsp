@@ -1,7 +1,7 @@
 import { BadRequestException, createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
-import { FilteringInterface, FilteringRulesEnum } from '../types'
+import { FILTERING_RULES_STRING, FilteringInterface, FilteringRulesEnum } from '../types'
 
 export const SwaggerFilteringDecorator = (validParams: string[]) => {
     return (
@@ -37,7 +37,10 @@ export const FilteringDecorator = createParamDecorator((validParams: string[], c
 
     for (const filterKeyValue of filterKeyValues) {
         // Validate the format
-        const pattern = /^[a-zA-Z0-9_.]+:(eq|neq|gt|gte|lt|lte|like|nlike|in|nin|isnull|isnotnull|between)(:[+a-zA-Z0-9_,@:.\\-]+)?$/;
+        const pattern = new RegExp(
+            `^[a-zA-Z0-9_.]+:(${FILTERING_RULES_STRING})(:[+a-zA-Z0-9_,@:.\\-]+)?$`
+        );
+
         if (!filterKeyValue.match(pattern)) {
             throw new BadRequestException('Invalid filter parameter format');
         }

@@ -1,20 +1,13 @@
-import { IsNull, Not, LessThan, LessThanOrEqual, MoreThan, MoreThanOrEqual, ILike, In, Repository, Between } from "typeorm";
+import { IsNull, Not, LessThan, LessThanOrEqual, MoreThan, MoreThanOrEqual, ILike, In, Between, Like } from "typeorm";
 import { availableOrmEnum, FilteringInterface, FilteringRulesEnum, WhereOptions } from '../types'
 
-export const getWhere = (
+export function getWhere(
     filters: FilteringInterface[],
-    dateFieldsRepositoryOrArray?: Repository<any> | Array<string>,
     options?: WhereOptions
-) => {
-    const { orm = availableOrmEnum.typeorm } = options || {}
+) {
+    const { orm = availableOrmEnum.typeorm, dateFields = [] } = options || {}
 
     const combinedRules = {};
-
-    const dateFields = dateFieldsRepositoryOrArray instanceof Repository ?
-        dateFieldsRepositoryOrArray.metadata.columns
-            .filter(column => column.type === 'timestamp' || column.type === 'datetime' || column.type === Date)
-            .map(column => column.propertyName) :
-        dateFieldsRepositoryOrArray instanceof Array ? dateFieldsRepositoryOrArray : []
 
     for (const filter of filters) {
         switch (orm) {
@@ -51,12 +44,10 @@ const getTypeOrmWhereFilters = (
     if (isNested) {
         const [relation, nestedProperty] = property.split('.');
 
-        // Initialize the relation object if it doesn't exist
         if (!combinedRules[relation]) {
             combinedRules[relation] = {};
         }
 
-        // Apply the filter to the nested property
         switch (rule) {
             case FilteringRulesEnum.IS_NULL:
                 combinedRules[relation][nestedProperty] = IsNull();
@@ -83,14 +74,51 @@ const getTypeOrmWhereFilters = (
                 combinedRules[relation][nestedProperty] = LessThanOrEqual(filterValue);
                 break;
             case FilteringRulesEnum.LIKE:
+                combinedRules[relation][nestedProperty] = Like(`%${value}%`);
+                break;
+            case FilteringRulesEnum.ILIKE:
                 combinedRules[relation][nestedProperty] = ILike(`%${value}%`);
                 break;
-            case FilteringRulesEnum.NOT_LIKE:
+
+            case FilteringRulesEnum.NOT_ILIKE:
                 combinedRules[relation][nestedProperty] = Not(ILike(`%${value}%`));
                 break;
+            case FilteringRulesEnum.NOT_ILIKE:
+                combinedRules[relation][nestedProperty] = Not(Like(`%${value}%`));
+                break;
+
+            case FilteringRulesEnum.STARTS_WITH:
+                combinedRules[relation][nestedProperty] = Like(`${value}%`);
+                break;
+            case FilteringRulesEnum.ISTARTS_WITH:
+                combinedRules[relation][nestedProperty] = ILike(`${value}%`);
+                break;
+
+            case FilteringRulesEnum.NOT_STARTS_WITH:
+                combinedRules[relation][nestedProperty] = Not(Like(`${value}%`));
+                break;
+            case FilteringRulesEnum.NOT_ISTARTS_WITH:
+                combinedRules[relation][nestedProperty] = Not(ILike(`${value}%`));
+                break;
+
+            case FilteringRulesEnum.ENDS_WITH:
+                combinedRules[relation][nestedProperty] = Like(`%${value}`);
+                break;
+            case FilteringRulesEnum.IENDS_WITH:
+                combinedRules[relation][nestedProperty] = ILike(`%${value}`);
+                break;
+
+            case FilteringRulesEnum.NOT_ENDS_WITH:
+                combinedRules[relation][nestedProperty] = Not(Like(`%${value}`));
+                break;
+            case FilteringRulesEnum.NOT_IENDS_WITH:
+                combinedRules[relation][nestedProperty] = Not(ILike(`%${value}`));
+                break;
+
             case FilteringRulesEnum.IN:
                 combinedRules[relation][nestedProperty] = In(value.split(','));
                 break;
+
             case FilteringRulesEnum.BETWEEN: {
                 const [start, end] = value.split(',');
                 if (!start || !end) {
@@ -113,7 +141,6 @@ const getTypeOrmWhereFilters = (
                 break;
         }
     } else {
-        // Handle non-nested properties
         switch (rule) {
             case FilteringRulesEnum.IS_NULL:
                 combinedRules[property] = IsNull();
@@ -140,11 +167,47 @@ const getTypeOrmWhereFilters = (
                 combinedRules[property] = LessThanOrEqual(filterValue);
                 break;
             case FilteringRulesEnum.LIKE:
+                combinedRules[property] = Like(`%${value}%`);
+                break;
+            case FilteringRulesEnum.ILIKE:
                 combinedRules[property] = ILike(`%${value}%`);
                 break;
             case FilteringRulesEnum.NOT_LIKE:
+                combinedRules[property] = Not(Like(`%${value}%`));
+                break;
+            case FilteringRulesEnum.NOT_ILIKE:
                 combinedRules[property] = Not(ILike(`%${value}%`));
                 break;
+
+
+            case FilteringRulesEnum.STARTS_WITH:
+                combinedRules[property] = Like(`${value}%`);
+                break;
+            case FilteringRulesEnum.ISTARTS_WITH:
+                combinedRules[property] = ILike(`${value}%`);
+                break;
+
+            case FilteringRulesEnum.NOT_STARTS_WITH:
+                combinedRules[property] = Not(Like(`${value}%`));
+                break;
+            case FilteringRulesEnum.NOT_ISTARTS_WITH:
+                combinedRules[property] = Not(ILike(`${value}%`));
+                break;
+
+            case FilteringRulesEnum.ENDS_WITH:
+                combinedRules[property] = Like(`%${value}`);
+                break;
+            case FilteringRulesEnum.IENDS_WITH:
+                combinedRules[property] = ILike(`%${value}`);
+                break;
+
+            case FilteringRulesEnum.NOT_ENDS_WITH:
+                combinedRules[property] = Not(Like(`%${value}`));
+                break;
+            case FilteringRulesEnum.NOT_IENDS_WITH:
+                combinedRules[property] = Not(ILike(`%${value}`));
+                break;
+
             case FilteringRulesEnum.IN:
                 combinedRules[property] = In(value.split(','));
                 break;
