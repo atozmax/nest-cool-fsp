@@ -36,7 +36,7 @@ export enum FilteringRulesEnum {
     NOT_IENDS_WITH = 'niew',
 }
 
-export type availableOrms = 'typeorm' | 'sequelize' | 'mongoose';
+export type availableOrms = 'typeorm' | 'sequelize' | 'mongoose' | 'mikroorm';
 
 export enum availableOrmEnum {
     typeorm = 'typeorm',

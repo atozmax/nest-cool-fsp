@@ -22,6 +22,11 @@ export function getWhere(
                 break;
             }
 
+            case availableOrmEnum.mikroorm: {
+                getMikroOrmFilters(combinedRules, filter, dateFields)
+                break;
+            }
+
             default:
                 throw new Error(`no support for orm ${orm} yet`)
         }
@@ -134,13 +139,10 @@ const getTypeOrmWhereFilters = (
 
     if (isNested) {
         const [relation, nestedProperty] = property.split('.');
-
-        if (!combinedRules[relation]) {
+        if (!combinedRules[relation])
             combinedRules[relation] = {};
-        }
 
         combinedRules[relation][nestedProperty] = valueToSet;
-
     } else {
         combinedRules[property] = valueToSet;
     }
@@ -208,6 +210,7 @@ const buildSequelizeValue = (property: string, rule: string, value: string, filt
                 return { [Op.between]: [+start, +end] };
             }
         }
+
         case FilteringRulesEnum.NOT_BETWEEN: {
             const [start, end] = value.split(',');
             if (!start || !end) {
@@ -238,6 +241,7 @@ const getSequelizeFilters = (
     const isDateField = dateFields.includes(property);
 
     let filterValue: string | Date = value;
+
     if (isDateField && value && rule !== FilteringRulesEnum.BETWEEN) {
         filterValue = new Date(value);
         if (isNaN(filterValue.getTime())) {
@@ -249,7 +253,174 @@ const getSequelizeFilters = (
 
     if (isNested) {
         const [relation, nestedProperty] = property.split('.');
-        if (!combinedRules[relation]) combinedRules[relation] = {};
+        if (!combinedRules[relation])
+            combinedRules[relation] = {};
+
+        combinedRules[relation][nestedProperty] = valueToSet;
+    } else {
+        combinedRules[property] = valueToSet;
+    }
+};
+
+const buildMikroOrmValue = (
+    property: string,
+    rule: string,
+    value: string,
+    filterValue: string | Date,
+    isDateField: boolean
+) => {
+    switch (rule) {
+        case FilteringRulesEnum.IS_NULL:
+            return { $eq: null };
+
+        case FilteringRulesEnum.IS_NOT_NULL:
+            return { $ne: null };
+
+        case FilteringRulesEnum.EQUALS:
+            return filterValue;
+
+        case FilteringRulesEnum.NOT_EQUALS:
+            return { $ne: filterValue };
+
+        case FilteringRulesEnum.GREATER_THAN:
+            return { $gt: filterValue };
+
+        case FilteringRulesEnum.GREATER_THAN_OR_EQUALS:
+            return { $gte: filterValue };
+
+        case FilteringRulesEnum.LESS_THAN:
+            return { $lt: filterValue };
+
+        case FilteringRulesEnum.LESS_THAN_OR_EQUALS:
+            return { $lte: filterValue };
+
+        case FilteringRulesEnum.LIKE:
+            return { $like: `%${value}%` };
+
+        case FilteringRulesEnum.ILIKE:
+            return { $ilike: `%${value}%` }; // PostgreSQL only
+
+        case FilteringRulesEnum.NOT_LIKE:
+            return { $not: { $like: `%${value}%` } };
+
+        case FilteringRulesEnum.NOT_ILIKE:
+            return { $not: { $ilike: `%${value}%` } };
+
+        case FilteringRulesEnum.STARTS_WITH:
+            return { $like: `${value}%` };
+
+        case FilteringRulesEnum.ISTARTS_WITH:
+            return { $ilike: `${value}%` };
+
+        case FilteringRulesEnum.NOT_STARTS_WITH:
+            return { $not: { $like: `${value}%` } };
+
+        case FilteringRulesEnum.NOT_ISTARTS_WITH:
+            return { $not: { $ilike: `${value}%` } };
+
+        case FilteringRulesEnum.ENDS_WITH:
+            return { $like: `%${value}` };
+
+        case FilteringRulesEnum.IENDS_WITH:
+            return { $ilike: `%${value}` };
+
+        case FilteringRulesEnum.NOT_ENDS_WITH:
+            return { $not: { $like: `%${value}` } };
+
+        case FilteringRulesEnum.NOT_IENDS_WITH:
+            return { $not: { $ilike: `%${value}` } };
+
+        case FilteringRulesEnum.IN:
+            return { $in: value.split(',') };
+
+        case FilteringRulesEnum.NOT_IN:
+            return { $nin: value.split(',') };
+
+        case FilteringRulesEnum.BETWEEN: {
+            const [start, end] = value.split(',');
+            if (!start || !end) {
+                throw new Error(`Invalid range for property ${property}`);
+            }
+            if (isDateField) {
+                const startValue = new Date(start);
+                const endValue = new Date(end);
+
+                if (
+                    isNaN(startValue.getTime()) || isNaN(endValue.getTime())
+                ) {
+                    throw new Error(`Invalid date range for property ${property}`);
+                }
+                return {
+                    $gte: startValue,
+                    $lte: endValue,
+                };
+            }
+
+            return {
+                $gte: +start,
+                $lte: +end,
+            };
+        }
+
+        case FilteringRulesEnum.NOT_BETWEEN: {
+            const [start, end] = value.split(',');
+            if (!start || !end) {
+                throw new Error(`Invalid range for property ${property}`);
+            }
+            if (isDateField) {
+                const startValue = new Date(start);
+                const endValue = new Date(end);
+
+                if (
+                    isNaN(startValue.getTime()) || isNaN(endValue.getTime())
+                ) {
+                    throw new Error(`Invalid date range for property ${property}`);
+                }
+                return {
+                    $not: {
+                        $gte: startValue,
+                        $lte: endValue,
+                    },
+                };
+            }
+
+            return {
+                $not: {
+                    $gte: +start,
+                    $lte: +end,
+                },
+            };
+        }
+
+        default:
+            throw new Error(`Unsupported filtering rule: ${rule}`);
+    }
+};
+
+const getMikroOrmFilters = (
+    combinedRules: Record<string, any>,
+    filter: FilteringInterface,
+    dateFields: string[]
+) => {
+    const { isNested, property, rule, value } = filter;
+    const isDateField = dateFields.includes(property);
+
+    let filterValue: string | Date = value;
+
+    if (isDateField && value && rule !== FilteringRulesEnum.BETWEEN) {
+        filterValue = new Date(value);
+        if (isNaN(filterValue.getTime())) {
+            throw new Error(`Invalid date format for field ${property}`);
+        }
+    }
+
+    const valueToSet = buildMikroOrmValue(property, rule, value, filterValue, isDateField);
+
+    if (isNested) {
+        const [relation, nestedProperty] = property.split('.');
+        if (!combinedRules[relation])
+            combinedRules[relation] = {};
+
         combinedRules[relation][nestedProperty] = valueToSet;
     } else {
         combinedRules[property] = valueToSet;
