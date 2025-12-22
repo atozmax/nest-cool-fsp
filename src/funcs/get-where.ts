@@ -92,6 +92,22 @@ const buildTypeOrmFilters = (property: string, rule: string, value: string, filt
                 return Between(+start, +end);
             }
         }
+        case FilteringRulesEnum.NOT_BETWEEN: {
+            const [start, end] = value.split(',');
+            if (!start || !end) {
+                throw new Error(`Invalid range for property ${property}`);
+            }
+            if (isDateField) {
+                const startValue = new Date(start);
+                const endValue = new Date(end);
+                if (isNaN(startValue.getTime()) || isNaN(endValue.getTime())) {
+                    throw new Error(`Invalid date range for property ${property}`);
+                }
+                return Not(Between(startValue, endValue));
+            } else {
+                return Not(Between(+start, +end));
+            }
+        }
         default:
             throw new Error(`Unsupported filtering rule: ${rule}`);
     }
@@ -192,8 +208,20 @@ const buildSequelizeValue = (property: string, rule: string, value: string, filt
                 return { [Op.between]: [+start, +end] };
             }
         }
+        case FilteringRulesEnum.NOT_BETWEEN: {
+            const [start, end] = value.split(',');
+            if (!start || !end) {
+                throw new Error(`Invalid range for property ${property}`);
+            }
+            if (isDateField) {
+                const startValue = new Date(start);
+                const endValue = new Date(end);
+                if (isNaN(startValue.getTime()) || isNaN(endValue.getTime())) {
+                    throw new Error(`Invalid date range for property ${property}`);
                 }
-                break;
+                return { [Op.notBetween]: [startValue, endValue] };
+            } else {
+                return { [Op.notBetween]: [+start, +end] };
             }
         }
         default:

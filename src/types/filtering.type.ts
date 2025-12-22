@@ -23,6 +23,7 @@ export enum FilteringRulesEnum {
     IS_NULL = 'isnull',
     IS_NOT_NULL = 'isnotnull',
     BETWEEN = 'between',
+    NOT_BETWEEN = 'nbetween',
 
     STARTS_WITH = 'sw',
     ENDS_WITH = 'ew',
