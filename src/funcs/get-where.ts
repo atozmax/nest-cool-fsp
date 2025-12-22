@@ -8,28 +8,11 @@ export function getWhere(
 ) {
     const { orm = availableOrmEnum.typeorm, dateFields = [] } = options || {}
 
+    const buildValueFunction = getOrmBuildFunction(typeof orm === 'string' ? availableOrmEnum[orm] : orm)
     const combinedRules = {};
 
     for (const filter of filters) {
-        switch (orm) {
-            case availableOrmEnum.typeorm: {
-                getTypeOrmWhereFilters(combinedRules, filter, dateFields)
-                break;
-            }
-
-            case availableOrmEnum.sequelize: {
-                getSequelizeFilters(combinedRules, filter, dateFields)
-                break;
-            }
-
-            case availableOrmEnum.mikroorm: {
-                getMikroOrmFilters(combinedRules, filter, dateFields)
-                break;
-            }
-
-            default:
-                throw new Error(`no support for orm ${orm} yet`)
-        }
+        getFilters(buildValueFunction, combinedRules, filter, dateFields)
     }
 
     return combinedRules;
@@ -118,36 +101,6 @@ const buildTypeOrmFilters = (property: string, rule: string, value: string, filt
     }
 }
 
-const getTypeOrmWhereFilters = (
-    combinedRules: Object,
-    filter: FilteringInterface,
-    dateFields: Array<string>
-) => {
-    const { isNested, property, rule, value } = filter;
-    const isDateField = dateFields.includes(property);
-
-    let filterValue: string | Date = value;
-
-    if (isDateField && value && rule !== FilteringRulesEnum.BETWEEN) {
-        filterValue = new Date(value);
-        if (isNaN(filterValue.getTime())) {
-            throw new Error(`Invalid date format for field ${property}`);
-        }
-    }
-
-    const valueToSet = buildTypeOrmFilters(property, rule, value, filterValue, isDateField);
-
-    if (isNested) {
-        const [relation, nestedProperty] = property.split('.');
-        if (!combinedRules[relation])
-            combinedRules[relation] = {};
-
-        combinedRules[relation][nestedProperty] = valueToSet;
-    } else {
-        combinedRules[property] = valueToSet;
-    }
-}
-
 const buildSequelizeValue = (property: string, rule: string, value: string, filterValue: string | Date, isDateField: boolean) => {
     switch (rule) {
         case FilteringRulesEnum.IS_NULL:
@@ -229,36 +182,6 @@ const buildSequelizeValue = (property: string, rule: string, value: string, filt
         }
         default:
             throw new Error(`Unsupported filtering rule: ${rule}`);
-    }
-};
-
-const getSequelizeFilters = (
-    combinedRules: Record<string, any>,
-    filter: FilteringInterface,
-    dateFields: string[]
-) => {
-    const { isNested, property, rule, value } = filter;
-    const isDateField = dateFields.includes(property);
-
-    let filterValue: string | Date = value;
-
-    if (isDateField && value && rule !== FilteringRulesEnum.BETWEEN) {
-        filterValue = new Date(value);
-        if (isNaN(filterValue.getTime())) {
-            throw new Error(`Invalid date format for field ${property}`);
-        }
-    }
-
-    const valueToSet = buildSequelizeValue(property, rule, value, filterValue, isDateField);
-
-    if (isNested) {
-        const [relation, nestedProperty] = property.split('.');
-        if (!combinedRules[relation])
-            combinedRules[relation] = {};
-
-        combinedRules[relation][nestedProperty] = valueToSet;
-    } else {
-        combinedRules[property] = valueToSet;
     }
 };
 
@@ -397,10 +320,11 @@ const buildMikroOrmValue = (
     }
 };
 
-const getMikroOrmFilters = (
-    combinedRules: Record<string, any>,
+const getFilters = (
+    buildValueFunction: (...args: any[]) => any,
+    combinedRules: Object,
     filter: FilteringInterface,
-    dateFields: string[]
+    dateFields: Array<string>
 ) => {
     const { isNested, property, rule, value } = filter;
     const isDateField = dateFields.includes(property);
@@ -414,7 +338,7 @@ const getMikroOrmFilters = (
         }
     }
 
-    const valueToSet = buildMikroOrmValue(property, rule, value, filterValue, isDateField);
+    let valueToSet = buildValueFunction(property, rule, value, filterValue, isDateField)
 
     if (isNested) {
         const [relation, nestedProperty] = property.split('.');
@@ -425,4 +349,21 @@ const getMikroOrmFilters = (
     } else {
         combinedRules[property] = valueToSet;
     }
-};
+}
+
+const getOrmBuildFunction = (orm: availableOrmEnum) => {
+    switch (orm) {
+        case availableOrmEnum.typeorm:
+            return buildTypeOrmFilters
+
+        case availableOrmEnum.sequelize:
+            return buildSequelizeValue
+
+        case availableOrmEnum.mikroorm:
+            return buildMikroOrmValue
+
+        default:
+            throw new Error(`no support for orm ${orm} yet`)
+    }
+
+}
