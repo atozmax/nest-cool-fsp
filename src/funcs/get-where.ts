@@ -8,7 +8,7 @@ export function getWhere(
 ) {
     const { orm = availableOrmEnum.typeorm, dateFields = [] } = options || {}
 
-    const buildValueFunction = getOrmBuildFunction(orm)
+    const buildValueFunction = getOrmBuildFunction(typeof orm === 'string' ? availableOrmEnum[orm] : orm)
     const combinedRules = {};
 
     for (const filter of filters) {

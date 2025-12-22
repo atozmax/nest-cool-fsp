@@ -46,7 +46,7 @@ export enum availableOrmEnum {
 }
 
 export interface WhereOptions {
-    orm: availableOrmEnum;
+    orm?: availableOrms;
     dateFields?: string[];
 }
 
