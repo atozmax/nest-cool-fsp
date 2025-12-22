@@ -40,7 +40,8 @@ export type availableOrms = 'typeorm' | 'sequelize' | 'mongoose';
 export enum availableOrmEnum {
     typeorm = 'typeorm',
     sequelize = 'sequelize',
-    mongoose = 'mongoose'
+    mongoose = 'mongoose',
+    mikroorm = 'mikroorm'
 }
 
 export interface WhereOptions {
