@@ -46,8 +46,8 @@ export enum availableOrmEnum {
 }
 
 export interface WhereOptions {
-    orm?: availableOrms;
-    dateFields: string[];
+    orm: availableOrmEnum;
+    dateFields?: string[];
 }
 
 export const FILTERING_RULES_STRING = Object.values(FilteringRulesEnum).join('|');
