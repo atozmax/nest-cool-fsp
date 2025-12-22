@@ -23,6 +23,7 @@ export enum FilteringRulesEnum {
     IS_NULL = 'isnull',
     IS_NOT_NULL = 'isnotnull',
     BETWEEN = 'between',
+    NOT_BETWEEN = 'nbetween',
 
     STARTS_WITH = 'sw',
     ENDS_WITH = 'ew',
@@ -35,12 +36,13 @@ export enum FilteringRulesEnum {
     NOT_IENDS_WITH = 'niew',
 }
 
-export type availableOrms = 'typeorm' | 'sequelize' | 'mongoose';
+export type availableOrms = 'typeorm' | 'sequelize' | 'mongoose' | 'mikroorm';
 
 export enum availableOrmEnum {
     typeorm = 'typeorm',
     sequelize = 'sequelize',
-    mongoose = 'mongoose'
+    mongoose = 'mongoose',
+    mikroorm = 'mikroorm'
 }
 
 export interface WhereOptions {
