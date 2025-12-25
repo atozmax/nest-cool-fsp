@@ -5,7 +5,7 @@ import { Op } from "sequelize";
 export function getWhere(
     filters: FilteringInterface[],
     options?: WhereOptions
-) {
+): Object {
     const { orm = availableOrmEnum.typeorm, dateFields = [] } = options || {}
 
     const buildValueFunction = getOrmBuildFunction(typeof orm === 'string' ? availableOrmEnum[orm] : orm)
@@ -349,6 +349,8 @@ const getFilters = (
     } else {
         combinedRules[property] = valueToSet;
     }
+
+    return combinedRules
 }
 
 const getOrmBuildFunction = (orm: availableOrmEnum) => {
