@@ -1,6 +1,6 @@
 {
   "name": "@atozmax/nest-cool-fsp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Filtering, sorting, pagination utilities for NestJS\ncross-ORM filter adapter, no more pain for handeling filtering sorting and pagination in different nestjs projects using different orms.\n We currently support TypeORM, Sequelize and MikroORM, and soo will support Mongoose and Prisma",
   "author": "atozmax",
   "license": "MIT",
