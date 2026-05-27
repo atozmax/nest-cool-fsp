@@ -1,98 +1,276 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+## nest-cool-fsp
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Helpers for **F**iltering, **S**orting, and **P**agination in NestJS controllers, plus utility functions to convert parsed query params into ORM-compatible `where` / `order` objects.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This package exports:
 
-## Description
+- **Decorators**: `FilteringDecorator`, `SortingDecorator`, `PaginationDecorator`
+- **Swagger decorators**: `SwaggerFilteringDecorator`, `SwaggerSortingDecorator`, `SwaggerPaginationDecorator`
+- **Functions**: `getWhere`, `getOrder`
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Installation
 
 ```bash
-$ npm install
+npm i nest-cool-fsp
 ```
 
-## Compile and run the project
+## Quick example (Controller)
 
-```bash
-# development
-$ npm run start
+```ts
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import {
+  FilteringDecorator,
+  SortingDecorator,
+  PaginationDecorator,
+  SwaggerFilteringDecorator,
+  SwaggerSortingDecorator,
+  SwaggerPaginationDecorator,
+  getWhere,
+  getOrder,
+  FilteringInterface,
+  Sorting,
+  Pagination,
+  availableOrmEnum,
+} from 'nest-cool-fsp';
 
-# watch mode
-$ npm run start:dev
+@ApiTags('users')
+@Controller('users')
+export class UsersController {
+  @Get()
+  @SwaggerPaginationDecorator()
+  @SwaggerSortingDecorator(['id', 'email', 'profile.name'])
+  @SwaggerFilteringDecorator(['id', 'email', 'createdAt', 'profile.name'])
+  async list(
+    @PaginationDecorator() pagination: Pagination,
+    @SortingDecorator(['id', 'email']) sorting: Sorting[],
+    @FilteringDecorator(['id', 'email', 'createdAt', 'profile.name']) filters: FilteringInterface[],
+  ) {
+    const where = getWhere(filters, {
+      orm: availableOrmEnum.typeorm,
+      dateFields: ['createdAt'],
+    });
+    const order = getOrder(sorting);
 
-# production mode
-$ npm run start:prod
+    // Use `pagination.offset` + `pagination.limit` with your ORM query.
+    // Use `where` and `order` with your ORM query.
+    return { pagination, where, order };
+  }
+}
 ```
 
-## Run tests
+## Pagination
 
-```bash
-# unit tests
-$ npm run test
+### `PaginationDecorator`
 
-# e2e tests
-$ npm run test:e2e
+Reads query params:
 
-# test coverage
-$ npm run test:cov
+- `**page**`: non-negative integer, defaults to `0` if omitted/empty
+- `**size**`: required; must be one of the allowed sizes (see `pageSizes`)
+
+Returns:
+
+- `**page**`: number
+- `**size**`: page size
+- `**limit**`: equals `size`
+- `**offset**`: `page * limit`
+
+Example request:
+
+- `GET /users?page=0&size=25`
+
+### `SwaggerPaginationDecorator`
+
+Adds Swagger (`@nestjs/swagger`) query docs for `page` and `size`.
+
+## Sorting
+
+### Query format
+
+Use the `**sort**` query parameter:
+
+- **Single sort**: `sort=property:asc`
+- **Multiple sorts**: `sort=property1:asc,property2:desc`
+
+Example:
+
+- `GET /users?sort=id:desc,email:asc`
+
+### `SortingDecorator(validParams)`
+
+- `**validParams`** must be an array of allowed properties.
+- Parses `sort` into `Sorting[]` (`{ property, direction }`).
+- Validates each sort item matches `^([a-zA-Z0-9]+):(asc|desc)$`.
+- Throws `BadRequestException` on invalid format or invalid property.
+
+Notes:
+
+- Only alphanumeric property names are accepted by the regex (no `_` / `.` in sorting).
+- Directions are normalized to lowercase (`asc` / `desc`).
+
+### `SwaggerSortingDecorator(validParams)`
+
+Adds Swagger docs for the `sort` query param, generating examples from `validParams`.
+
+## Filtering
+
+### Query format
+
+Use the `**filter**` query parameter.
+
+- Each filter item is: `**property:rule:value**`
+- Multiple filter items are separated by `|` (pipe).
+- For `isnull` / `isnotnull`, `value` is optional.
+
+Examples:
+
+- `GET /users?filter=email:ilike:gmail.com`
+- `GET /users?filter=createdAt:between:2026-01-01,2026-01-31|profile.name:like:amir`
+- `GET /users?filter=deletedAt:isnull`
+
+### Supported rules (`FilteringRulesEnum`)
+
+```txt
+eq, neq, gt, gte, lt, lte,
+like, ilike, nlike, nilike,
+sw, isw, nsw, nisw,
+ew, iew, new, niew,
+in, nin,
+between, nbetween,
+isnull, isnotnull
 ```
 
-## Deployment
+### `FilteringDecorator(validParams)`
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+- `**validParams**` must be an array of allowed properties.
+- Parses `filter` into `FilteringInterface[]` (`{ property, rule, value, isNested }`).
+- Validates the overall filter string format and validates:
+  - property is within `validParams`
+  - rule is within `FilteringRulesEnum`
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Nested fields:
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+- If `property` includes a dot (example: `profile.name`) then `isNested` is set to `true`.
+
+### `SwaggerFilteringDecorator(validParams)`
+
+Adds Swagger docs for the `filter` query param, generating examples from:
+
+- every property in `validParams`
+- every value in `FilteringRulesEnum`
+
+## ORM utilities
+
+### `getOrder(sorting)`
+
+Converts `Sorting[]` into a plain object:
+
+- Input: `[{ property: 'id', direction: 'desc' }]`
+- Output: `{ id: 'desc' }`
+
+This is typically compatible with TypeORM `order`, and can also be adapted for other ORMs.
+
+### `getWhere(filters, options?)`
+
+Builds an ORM-friendly `where` object from `FilteringInterface[]`.
+
+#### Options
+
+- `**orm**`: `'typeorm' | 'sequelize' | 'mikroorm'` (default: `typeorm`)
+  - `mongoose` exists in the type but is **not implemented** and will throw.
+- `**dateFields`**: list of properties that should be treated as dates
+
+#### Date fields
+
+If `options.dateFields` includes the filter property:
+
+- for most rules, the value is converted to a `Date` (and throws if invalid)
+- for `between` / `nbetween`, both `start,end` are parsed as dates
+
+#### Nested fields
+
+If `filter.isNested` is `true` and property is like `profile.name`, `getWhere` produces:
+
+```ts
+{ profile: { name: /* built value */ } }
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+#### ORM behavior
 
-## Resources
+- **TypeORM (`orm: 'typeorm'`)**: uses `IsNull`, `Not`, `In`, `Between`, `Like`, `ILike`, `MoreThan`, etc.
+- **Sequelize (`orm: 'sequelize'`)**: uses `Op.`* operators
+- **MikroORM (`orm: 'mikroorm'`)**: uses `$eq`, `$ne`, `$in`, `$gte/$lte`, `$like`, `$ilike`, etc.
 
-Check out a few resources that may come in handy when working with NestJS:
+#### Passing `getWhere(...)` output to ORM find methods
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Below are minimal examples of using `getWhere` + `getOrder` with popular ORMs.
 
-## Support
+##### TypeORM (`Repository.find`)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```ts
+import { Repository } from 'typeorm';
+import { getWhere, getOrder, availableOrmEnum } from 'nest-cool-fsp';
 
-## Stay in touch
+// filters: FilteringInterface[] (typically from @FilteringDecorator)
+// sorting: Sorting[] (typically from @SortingDecorator)
+// pagination: Pagination (typically from @PaginationDecorator)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+const where = getWhere(filters, {
+  orm: availableOrmEnum.typeorm,
+  dateFields: ['createdAt'],
+});
 
-## License
+const order = getOrder(sorting); // { id: 'desc', email: 'asc' }
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+const users = await userRepository.find({
+  where: where as any,
+  order: order as any,
+  skip: pagination.offset,
+  take: pagination.limit,
+})
+```
+
+##### MikroORM (`EntityManager.find`)
+
+```ts
+import { EntityManager } from '@mikro-orm/core';
+import { getWhere, getOrder, availableOrmEnum } from 'nest-cool-fsp';
+
+const where = getWhere(filters, {
+  orm: availableOrmEnum.mikroorm,
+  dateFields: ['createdAt'],
+});
+
+const orderBy = getOrder(sorting); // MikroORM accepts an object for orderBy
+
+const users = await em.find(UserEntity, where as any, {
+  orderBy: orderBy as any,
+  limit: pagination.limit,
+  offset: pagination.offset,
+});
+```
+
+##### Sequelize (`Model.findAll`)
+
+```ts
+import { getWhere, getOrder, availableOrmEnum } from 'nest-cool-fsp';
+
+const where = getWhere(filters, {
+  orm: availableOrmEnum.sequelize,
+  dateFields: ['createdAt'],
+});
+
+// Sequelize `order` is usually an array of tuples. Convert `getOrder` output:
+const order = Object.entries(getOrder(sorting)).map(([field, direction]) => [
+  field,
+  String(direction).toUpperCase(),
+]);
+
+const users = await UserModel.findAll({
+  where: where as any,
+  order: order as any,
+  limit: pagination.limit,
+  offset: pagination.offset,
+});
+```
+
